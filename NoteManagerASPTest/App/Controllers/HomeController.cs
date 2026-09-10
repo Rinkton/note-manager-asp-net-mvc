@@ -1,6 +1,7 @@
-using System.Diagnostics;
 using App.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace App.Controllers
 {
@@ -9,15 +10,19 @@ namespace App.Controllers
         private readonly ILogger<HomeController> _logger;
         private static List<NoteModel> _notes = new List<NoteModel>();
         private static int _nextId = 1;
+        private readonly ApplicationDbContext _context;
 
-        public HomeController(ILogger<HomeController> logger)
+        public HomeController(ILogger<HomeController> logger, 
+            ApplicationDbContext context)
         {
             _logger = logger;
+            _context = context;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> IndexAsync()
         {
-            return View(_notes);
+            var notes = await _context.Notes.OrderByDescending(n => n.Id).ToListAsync();
+            return View(notes);
         }
 
         public IActionResult Privacy()
@@ -32,10 +37,12 @@ namespace App.Controllers
         }
 
         [HttpPost]
-        public IActionResult SubmitForm(string noteText)
+        public async Task<IActionResult> SubmitFormAsync(string noteText)
         {
-            if(noteText != null) {
-                _notes.Add(new NoteModel { Id = _nextId++, Text = noteText });
+            if(!string.IsNullOrWhiteSpace(noteText)) {
+                var note = new NoteModel { Text = noteText };
+                _context.Notes.Add(note);
+                await _context.SaveChangesAsync();
             }
             return RedirectToAction("Index");
         }
